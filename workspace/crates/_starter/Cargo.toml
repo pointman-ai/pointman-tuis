@@ -1,0 +1,15 @@
+# The starter: copy this folder to crates/<name> to start a TUI, and rename the package and the binary to tui-<name>.
+# pointman-tuis keeps this one (crates/_starter); it builds with the rest, so the shared build stays warm.
+[package]
+name = "tui-starter"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "tui-starter"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+kit = { path = "../../kit" }

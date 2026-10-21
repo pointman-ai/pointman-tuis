@@ -5,7 +5,7 @@ Small terminal apps that agents built to show work that keeps happening, such as
 | Path | What |
 |---|---|
 | `kit/` | What every TUI shares: the app loop, the frame, the keys, help, commands' output, and `--snapshot` |
-| `starter/` | The TUI to copy when you start a new one (not built itself) |
+| `crates/_starter/` | The TUI to copy when you start a new one. It builds with the rest, which keeps the shared build warm |
 | `crates/<name>/` | One TUI. Its package and binary are `tui-<name>` |
 | `tuis.toml` | The index: one `[tui.<name>]` for each TUI here |
 | `target/` | One build folder for all of them, so a new TUI builds in seconds |
@@ -22,7 +22,7 @@ target/release/tui-<name> --snapshot      # one frame as text, for checking with
 ## Adding a TUI
 
 1. Check `tuis.toml`. If a TUI already shows this, extend it instead.
-2. `cp -R starter crates/<name>`, then rename its package and binary to `tui-<name>`.
+2. `cp -R crates/_starter crates/<name>`, then rename its package and binary to `tui-<name>`.
 3. Add its `[tui.<name>]` to `tuis.toml`.
 4. Build it, check `--snapshot` at 80×24, then run it in a terminal panel.
 

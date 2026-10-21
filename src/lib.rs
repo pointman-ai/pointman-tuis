@@ -4,8 +4,9 @@
 //!
 //! What's the extension's is written again whenever it differs (so a release reaches every node): `Cargo.toml`,
 //! `.cargo/config.toml` (shipped as `cargo-config.toml`: the node leaves hidden files out of an extension it unpacks),
-//! `README.md`, and the folders `kit/` and `starter/`, which are made exactly like the release's. `tuis.toml` is
-//! written only when it isn't there: agents add to it. Nothing else is touched: `crates/` (the agents' TUIs),
+//! `README.md`, and the folders `kit/` and `crates/_starter/` (the starter, a member so `crates/*` is never empty: cargo
+//! refuses a workspace whose glob matches nothing), which are made exactly like the release's. `tuis.toml` is written
+//! only when it isn't there: agents add to it. Nothing else is touched: the rest of `crates/` (the agents' TUIs),
 //! `Cargo.lock` and `target/` are theirs. One part that can't be written doesn't stop the others: each is said.
 
 use std::fs;
@@ -16,7 +17,9 @@ use std::path::{Path, PathBuf};
 pub const KEPT_FILES: [(&str, &str); 3] =
     [("Cargo.toml", "Cargo.toml"), ("cargo-config.toml", ".cargo/config.toml"), ("README.md", "README.md")];
 /// Folders the extension keeps exactly as the release has them (files it no longer has go).
-pub const KEPT_DIRS: [&str; 2] = ["kit", "starter"];
+pub const KEPT_DIRS: [&str; 2] = ["kit", "crates/_starter"];
+/// Folders an earlier release made that this one doesn't: taken out (0.1.0 and 0.1.1 kept the starter at the top).
+pub const GONE_DIRS: [&str; 1] = ["starter"];
 /// Written once, then the agents'.
 pub const SEEDED: [&str; 1] = ["tuis.toml"];
 
@@ -60,6 +63,15 @@ pub fn install(seed: &Path, dest: &Path) -> io::Result<Report> {
     for dir in KEPT_DIRS {
         let got = sync_dir(&seed.join(dir), &dest.join(dir), dir, &mut report);
         note(dir, got, &mut report);
+    }
+    for dir in GONE_DIRS {
+        if dest.join(dir).is_dir() {
+            let got = fs::remove_dir_all(dest.join(dir));
+            if got.is_ok() {
+                report.removed.push(dir.to_string());
+            }
+            note(dir, got, &mut report);
+        }
     }
     Ok(report)
 }
@@ -112,7 +124,7 @@ fn sync_dir(from: &Path, to: &Path, rel: &str, report: &mut Report) -> io::Resul
     Ok(())
 }
 
-/// The TUIs in the folder: each `crates/<name>` with a Cargo.toml, sorted.
+/// The TUIs in the folder: each `crates/<name>` with a Cargo.toml, sorted, but not the extension's own `_starter`.
 pub fn tuis(dest: &Path) -> Vec<String> {
     let mut names: Vec<String> = fs::read_dir(dest.join("crates"))
         .into_iter()
@@ -120,6 +132,7 @@ pub fn tuis(dest: &Path) -> Vec<String> {
         .flatten()
         .filter(|e| e.path().join("Cargo.toml").is_file())
         .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| !n.starts_with('_'))
         .collect();
     names.sort();
     names
@@ -155,15 +168,15 @@ mod tests {
     fn seed(root: &Path) -> PathBuf {
         let s = root.join("seed");
         fs::create_dir_all(s.join("kit/src")).unwrap();
-        fs::create_dir_all(s.join("starter/src")).unwrap();
+        fs::create_dir_all(s.join("crates/_starter/src")).unwrap();
         fs::write(s.join("Cargo.toml"), "[workspace]\n").unwrap();
         fs::write(s.join("cargo-config.toml"), "[build]\n").unwrap();
         fs::write(s.join("README.md"), "readme\n").unwrap();
         fs::write(s.join("tuis.toml"), "# index\n").unwrap();
         fs::write(s.join("kit/Cargo.toml"), "[package]\nname = \"kit\"\n").unwrap();
         fs::write(s.join("kit/src/lib.rs"), "// kit 1\n").unwrap();
-        fs::write(s.join("starter/Cargo.toml"), "[package]\nname = \"tui-starter\"\n").unwrap();
-        fs::write(s.join("starter/src/main.rs"), "fn main() {}\n").unwrap();
+        fs::write(s.join("crates/_starter/Cargo.toml"), "[package]\nname = \"tui-starter\"\n").unwrap();
+        fs::write(s.join("crates/_starter/src/main.rs"), "fn main() {}\n").unwrap();
         s
     }
 
@@ -200,7 +213,21 @@ mod tests {
         assert_eq!(fs::read_to_string(d.join("tuis.toml")).unwrap(), "[tui.releases]\n", "the index is the agents'");
         assert!(d.join("crates/releases/Cargo.toml").is_file() && d.join("Cargo.lock").is_file());
         assert!(d.join("target/release").is_dir());
-        assert_eq!(tuis(&d), ["releases"]);
+        assert_eq!(tuis(&d), ["releases"], "the starter isn't one of the agents' TUIs");
+    }
+
+    /// nixtest on nixos (Pointman thread 17421): with no TUI yet, `crates/*` matched nothing and cargo refused the
+    /// whole workspace. The starter is a member in crates/ now, and the top-level starter/ 0.1.0 made goes.
+    #[test]
+    fn crates_is_never_empty_and_the_old_starter_folder_goes() {
+        let dir = tempfile::tempdir().unwrap();
+        let (s, d) = (seed(dir.path()), dir.path().join("tuis"));
+        fs::create_dir_all(d.join("starter/src")).unwrap();
+        fs::write(d.join("starter/src/main.rs"), "// 0.1.1's\n").unwrap();
+        let r = install(&s, &d).unwrap();
+        assert!(d.join("crates/_starter/Cargo.toml").is_file() && !d.join("starter").exists(), "{r:?}");
+        assert!(r.removed.contains(&"starter".to_string()), "{r:?}");
+        assert!(tuis(&d).is_empty());
     }
 
     #[test]
@@ -223,7 +250,7 @@ mod tests {
         let r = install(&s, &d).unwrap();
         assert_eq!(r.problems.len(), 1, "{r:?}");
         assert!(r.problems[0].starts_with(".cargo/config.toml: "), "{r:?}");
-        for made in ["Cargo.toml", "README.md", "tuis.toml", "kit/src/lib.rs", "starter/src/main.rs"] {
+        for made in ["Cargo.toml", "README.md", "tuis.toml", "kit/src/lib.rs", "crates/_starter/src/main.rs"] {
             assert!(d.join(made).is_file(), "{made}");
         }
     }

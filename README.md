@@ -6,7 +6,7 @@ A Pointman extension: agents build small terminal apps (TUIs) that show work tha
 |---|---|
 | [SKILL.md](SKILL.md) | What every agent on the node is told: when a TUI helps, reusing one, building one, and showing it |
 | [references/guide.md](references/guide.md) | The details: layouts, data sources, testing |
-| [workspace/](workspace) | The node's TUI folder as this release makes it: the Rust workspace, the shared `kit/` (ratatui) and the `starter/` |
+| [workspace/](workspace) | The node's TUI folder as this release makes it: the Rust workspace, the shared `kit/` (ratatui) and the starter in `crates/_starter` |
 | `bin/tuis` | A small process that keeps `~/.local/share/message-board/tuis/` up to date from `workspace/`. Agents' TUIs in `crates/` are never touched. Health shows the folder, its TUIs and whether there's cargo |
 
 ## Add it

@@ -21,6 +21,9 @@ jobs:
           cp -R workspace/. "$dir"/
           mkdir -p "$dir/crates" "$dir/.cargo"
           mv "$dir/cargo-config.toml" "$dir/.cargo/config.toml"
-          cp -R "$dir/starter" "$dir/crates/demo"
+          # a fresh node: only the release's files, no TUI of its own yet, must already be a workspace that builds
+          (cd "$dir" && cargo build --release -p kit -p tui-starter)
+          cp -R "$dir/crates/_starter" "$dir/crates/demo"
           sed -i.bak 's/tui-starter/tui-demo/g' "$dir/crates/demo/Cargo.toml"
+          rm "$dir/crates/demo/Cargo.toml.bak"
           (cd "$dir" && cargo build --release -p tui-demo && cargo test -p kit -p tui-demo && target/release/tui-demo --snapshot | head -5)
