@@ -87,8 +87,32 @@ fn health(state: &State) -> Value {
             part("folder", "The TUI folder", "ok", format!("{}: {which}", dest.display()))
         }
     };
-    let cargo = match tuis::cargo(std::env::var("PATH").ok().as_deref(), &home()) {
-        Some(c) => part("cargo", "Rust (cargo)", "ok", format!("cargo at {}: TUIs build here", c.display())),
+    let path = std::env::var("PATH").ok();
+    let (path, home) = (path.as_deref(), home());
+    let cargo = match tuis::cargo(path, &home) {
+        Some(c) if tuis::cc(path, &home).is_some() => {
+            part("cargo", "Rust (cargo)", "ok", format!("cargo at {}: TUIs build here", c.display()))
+        }
+        // nixos: no C compiler to link with outside a nix-shell
+        Some(c) if tuis::nix_shell(path, &home).is_some() => part(
+            "cargo",
+            "Rust (cargo)",
+            "ok",
+            format!(
+                "cargo at {0}, but no C compiler outside a nix-shell: build with nix-shell -p gcc --run '{0} build \
+                 --release -p tui-<name>'",
+                c.display()
+            ),
+        ),
+        Some(c) => part(
+            "cargo",
+            "Rust (cargo)",
+            "failing",
+            format!(
+                "cargo at {}, but no C compiler (cc) to link with, so TUIs can't be built here: install gcc or clang",
+                c.display()
+            ),
+        ),
         None => part(
             "cargo",
             "Rust (cargo)",

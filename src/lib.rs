@@ -138,9 +138,9 @@ pub fn tuis(dest: &Path) -> Vec<String> {
     names
 }
 
-/// Cargo on this machine: on the PATH, else where rustup, Homebrew and Nix put it, else in a rustup toolchain
-/// (nixos has `~/.rustup/toolchains/stable-…/bin/cargo` and no proxies).
-pub fn cargo(path_var: Option<&str>, home: &Path) -> Option<PathBuf> {
+/// Where a tool is on this machine: on the PATH, else where rustup, Homebrew, Nix and the system put it, else in a
+/// rustup toolchain (nixos has `~/.rustup/toolchains/stable-…/bin/cargo` and no proxies).
+fn find(tool: &str, path_var: Option<&str>, home: &Path) -> Option<PathBuf> {
     let mut dirs: Vec<PathBuf> = path_var.map(|p| std::env::split_paths(p).collect()).unwrap_or_default();
     dirs.extend([
         home.join(".cargo/bin"),
@@ -148,6 +148,7 @@ pub fn cargo(path_var: Option<&str>, home: &Path) -> Option<PathBuf> {
         PathBuf::from("/usr/local/bin"),
         home.join(".nix-profile/bin"),
         PathBuf::from("/run/current-system/sw/bin"),
+        PathBuf::from("/usr/bin"),
     ]);
     let mut toolchains: Vec<PathBuf> = fs::read_dir(home.join(".rustup/toolchains"))
         .into_iter()
@@ -158,7 +159,23 @@ pub fn cargo(path_var: Option<&str>, home: &Path) -> Option<PathBuf> {
     // stable first, then the rest by name
     toolchains.sort_by_key(|p| (!p.to_string_lossy().contains("/stable-"), p.clone()));
     dirs.extend(toolchains);
-    dirs.into_iter().map(|d| d.join("cargo")).find(|p| p.is_file())
+    dirs.into_iter().map(|d| d.join(tool)).find(|p| p.is_file())
+}
+
+/// Cargo on this machine.
+pub fn cargo(path_var: Option<&str>, home: &Path) -> Option<PathBuf> {
+    find("cargo", path_var, home)
+}
+
+/// The C compiler cargo links with (`cc`). macOS has one in /usr/bin; nixos has none outside a nix-shell, so plain
+/// cargo there stops at the first link (nixtest, Pointman thread 17421).
+pub fn cc(path_var: Option<&str>, home: &Path) -> Option<PathBuf> {
+    find("cc", path_var, home)
+}
+
+/// Nix's shell, which brings a C compiler for one command where the machine has none.
+pub fn nix_shell(path_var: Option<&str>, home: &Path) -> Option<PathBuf> {
+    find("nix-shell", path_var, home)
 }
 
 #[cfg(test)]
@@ -262,6 +279,18 @@ mod tests {
         fs::create_dir_all(&bin).unwrap();
         fs::write(bin.join("cargo"), "").unwrap();
         assert_eq!(cargo(Some("/nowhere"), home.path()), Some(bin.join("cargo")));
+    }
+
+    #[test]
+    fn a_c_compiler_and_nix_shell_are_found_on_the_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let bin = dir.path().join("bin");
+        fs::create_dir_all(&bin).unwrap();
+        fs::write(bin.join("cc"), "").unwrap();
+        fs::write(bin.join("nix-shell"), "").unwrap();
+        let path = bin.to_str().unwrap();
+        assert_eq!(cc(Some(path), dir.path()), Some(bin.join("cc")));
+        assert_eq!(nix_shell(Some(path), dir.path()), Some(bin.join("nix-shell")));
     }
 
     #[test]

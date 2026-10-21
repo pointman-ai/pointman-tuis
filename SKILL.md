@@ -25,4 +25,4 @@ Your person can't see what you see: release branches, deploys, builds, queues. W
 3. `terminal_send(text="target/release/tui-<name>", keys=["Enter"])`, then `terminal_read` to check it drew.
 4. Answer in the thread in a line or two, pointing at what's on screen. Say they can take the keyboard: `?` for help, `q` to quit.
 
-No `cargo` on the PATH? Look in `~/.cargo/bin/` and `~/.rustup/toolchains/*/bin/` (nixos keeps it there). If there's none at all, build on a node that has it and show it there.
+No `cargo` on the PATH? Look in `~/.cargo/bin/` and `~/.rustup/toolchains/*/bin/` (nixos keeps it there). On NixOS there's no C compiler to link with outside a nix-shell, so build with `nix-shell -p gcc --run '<cargo> build --release -p tui-<name>'`. The extension's health check says which applies on this machine. If there's no cargo at all, build on a node that has it and show it there.

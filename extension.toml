@@ -7,7 +7,7 @@
 [extension]
 id = "tuis"
 name = "TUIs"
-version = "0.1.2"
+version = "0.1.3"
 publisher = "aurelio"
 summary = "Agents build small terminal apps that show work that keeps happening, in a TUI folder on each node, and open them beside the thread for you to look around in."
 node = ">=0.1,<1"
