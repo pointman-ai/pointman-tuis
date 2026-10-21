@@ -3,26 +3,30 @@
 //! `~/.local/share/message-board/tuis/`, where every agent builds its TUIs (James, Pointman thread 17421).
 //!
 //! What's the extension's is written again whenever it differs (so a release reaches every node): `Cargo.toml`,
-//! `.cargo/config.toml`, `README.md`, and the folders `kit/` and `starter/`, which are made exactly like the
-//! release's. `tuis.toml` is written only when it isn't there: agents add to it. Nothing else is touched: `crates/`
-//! (the agents' TUIs), `Cargo.lock` and `target/` are theirs.
+//! `.cargo/config.toml` (shipped as `cargo-config.toml`: the node leaves hidden files out of an extension it unpacks),
+//! `README.md`, and the folders `kit/` and `starter/`, which are made exactly like the release's. `tuis.toml` is
+//! written only when it isn't there: agents add to it. Nothing else is touched: `crates/` (the agents' TUIs),
+//! `Cargo.lock` and `target/` are theirs. One part that can't be written doesn't stop the others: each is said.
 
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// Files the extension keeps as the release has them.
-pub const KEPT_FILES: [&str; 3] = ["Cargo.toml", ".cargo/config.toml", "README.md"];
+/// Files the extension keeps as the release has them: where each is in the release's `workspace/`, and on the node.
+pub const KEPT_FILES: [(&str, &str); 3] =
+    [("Cargo.toml", "Cargo.toml"), ("cargo-config.toml", ".cargo/config.toml"), ("README.md", "README.md")];
 /// Folders the extension keeps exactly as the release has them (files it no longer has go).
 pub const KEPT_DIRS: [&str; 2] = ["kit", "starter"];
 /// Written once, then the agents'.
 pub const SEEDED: [&str; 1] = ["tuis.toml"];
 
-/// What an install did: the files it wrote and the ones it took out, relative to the folder.
+/// What an install did: the files it wrote and the ones it took out, relative to the folder, and each part it
+/// couldn't write, with why.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Report {
     pub written: Vec<String>,
     pub removed: Vec<String>,
+    pub problems: Vec<String>,
 }
 
 /// The node's TUI folder: `$POINTMAN_TUIS_DIR`, else `~/.local/share/message-board/tuis`.
@@ -33,20 +37,29 @@ pub fn folder(env_dir: Option<&str>, home: &Path) -> PathBuf {
     }
 }
 
-/// Make `dest` from `seed` (the release's `workspace/`), or bring it up to date.
+/// Make `dest` from `seed` (the release's `workspace/`), or bring it up to date. Only a folder that can't be made at
+/// all is an error; a part that can't be written is in the report's problems, and the rest go on.
 pub fn install(seed: &Path, dest: &Path) -> io::Result<Report> {
     let mut report = Report::default();
     fs::create_dir_all(dest.join("crates"))?;
-    for rel in KEPT_FILES {
-        write_if_changed(&seed.join(rel), &dest.join(rel), rel, &mut report)?;
+    let note = |what: &str, got: io::Result<()>, report: &mut Report| {
+        if let Err(e) = got {
+            report.problems.push(format!("{what}: {e}"));
+        }
+    };
+    for (from, to) in KEPT_FILES {
+        let got = write_if_changed(&seed.join(from), &dest.join(to), to, &mut report);
+        note(to, got, &mut report);
     }
     for rel in SEEDED {
         if !dest.join(rel).exists() {
-            write_if_changed(&seed.join(rel), &dest.join(rel), rel, &mut report)?;
+            let got = write_if_changed(&seed.join(rel), &dest.join(rel), rel, &mut report);
+            note(rel, got, &mut report);
         }
     }
     for dir in KEPT_DIRS {
-        sync_dir(&seed.join(dir), &dest.join(dir), dir, &mut report)?;
+        let got = sync_dir(&seed.join(dir), &dest.join(dir), dir, &mut report);
+        note(dir, got, &mut report);
     }
     Ok(report)
 }
@@ -112,7 +125,8 @@ pub fn tuis(dest: &Path) -> Vec<String> {
     names
 }
 
-/// Cargo on this machine: on the PATH, else where rustup, Homebrew and Nix put it.
+/// Cargo on this machine: on the PATH, else where rustup, Homebrew and Nix put it, else in a rustup toolchain
+/// (nixos has `~/.rustup/toolchains/stable-…/bin/cargo` and no proxies).
 pub fn cargo(path_var: Option<&str>, home: &Path) -> Option<PathBuf> {
     let mut dirs: Vec<PathBuf> = path_var.map(|p| std::env::split_paths(p).collect()).unwrap_or_default();
     dirs.extend([
@@ -122,6 +136,15 @@ pub fn cargo(path_var: Option<&str>, home: &Path) -> Option<PathBuf> {
         home.join(".nix-profile/bin"),
         PathBuf::from("/run/current-system/sw/bin"),
     ]);
+    let mut toolchains: Vec<PathBuf> = fs::read_dir(home.join(".rustup/toolchains"))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|e| e.path().join("bin"))
+        .collect();
+    // stable first, then the rest by name
+    toolchains.sort_by_key(|p| (!p.to_string_lossy().contains("/stable-"), p.clone()));
+    dirs.extend(toolchains);
     dirs.into_iter().map(|d| d.join("cargo")).find(|p| p.is_file())
 }
 
@@ -131,11 +154,10 @@ mod tests {
 
     fn seed(root: &Path) -> PathBuf {
         let s = root.join("seed");
-        fs::create_dir_all(s.join(".cargo")).unwrap();
         fs::create_dir_all(s.join("kit/src")).unwrap();
         fs::create_dir_all(s.join("starter/src")).unwrap();
         fs::write(s.join("Cargo.toml"), "[workspace]\n").unwrap();
-        fs::write(s.join(".cargo/config.toml"), "[build]\n").unwrap();
+        fs::write(s.join("cargo-config.toml"), "[build]\n").unwrap();
         fs::write(s.join("README.md"), "readme\n").unwrap();
         fs::write(s.join("tuis.toml"), "# index\n").unwrap();
         fs::write(s.join("kit/Cargo.toml"), "[package]\nname = \"kit\"\n").unwrap();
@@ -152,6 +174,8 @@ mod tests {
         let first = install(&s, &d).unwrap();
         assert_eq!(first.written.len(), 8, "{first:?}");
         assert!(d.join("crates").is_dir() && d.join("kit/src/lib.rs").is_file() && d.join("tuis.toml").is_file());
+        assert_eq!(fs::read_to_string(d.join(".cargo/config.toml")).unwrap(), "[build]\n", "from cargo-config.toml");
+        assert!(first.problems.is_empty(), "{first:?}");
         assert_eq!(install(&s, &d).unwrap(), Report::default(), "nothing changed, nothing written");
     }
 
@@ -187,6 +211,30 @@ mod tests {
         fs::write(d.join("Cargo.toml"), "[workspace]\nmembers = [\"elsewhere\"]\n").unwrap();
         assert_eq!(install(&s, &d).unwrap().written, ["Cargo.toml"]);
         assert_eq!(fs::read_to_string(d.join("Cargo.toml")).unwrap(), "[workspace]\n");
+    }
+
+    /// v0.1.0 on nixos: the node had left the release's hidden .cargo/ out, the install stopped there, and the
+    /// kit, the starter, the README and the index never came (nixtest, Pointman thread 17421).
+    #[test]
+    fn a_part_missing_from_the_release_is_said_and_the_rest_still_come() {
+        let dir = tempfile::tempdir().unwrap();
+        let (s, d) = (seed(dir.path()), dir.path().join("tuis"));
+        fs::remove_file(s.join("cargo-config.toml")).unwrap();
+        let r = install(&s, &d).unwrap();
+        assert_eq!(r.problems.len(), 1, "{r:?}");
+        assert!(r.problems[0].starts_with(".cargo/config.toml: "), "{r:?}");
+        for made in ["Cargo.toml", "README.md", "tuis.toml", "kit/src/lib.rs", "starter/src/main.rs"] {
+            assert!(d.join(made).is_file(), "{made}");
+        }
+    }
+
+    #[test]
+    fn cargo_in_a_rustup_toolchain_is_found() {
+        let home = tempfile::tempdir().unwrap();
+        let bin = home.path().join(".rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin");
+        fs::create_dir_all(&bin).unwrap();
+        fs::write(bin.join("cargo"), "").unwrap();
+        assert_eq!(cargo(Some("/nowhere"), home.path()), Some(bin.join("cargo")));
     }
 
     #[test]

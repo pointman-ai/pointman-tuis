@@ -22,8 +22,9 @@ fn it_makes_the_tui_folder_as_it_starts_and_health_says_where() {
         .start()
         .expect("started");
 
+    // done once health has a verdict on the folder (it says "unknown" until the first install has finished)
     let until = Instant::now() + Duration::from_secs(10);
-    while !dest.join("Cargo.toml").is_file() && Instant::now() < until {
+    while health(&node)[0]["state"] == "unknown" && Instant::now() < until {
         std::thread::sleep(Duration::from_millis(25));
     }
     for made in ["Cargo.toml", ".cargo/config.toml", "README.md", "tuis.toml", "crates"] {
@@ -44,4 +45,23 @@ fn it_makes_the_tui_folder_as_it_starts_and_health_says_where() {
     assert!(health(&node)[0]["why"].as_str().unwrap().ends_with("1 TUI: releases"));
     node.stop();
     assert!(dest.join("crates/releases/Cargo.toml").is_file());
+}
+
+/// The node leaves hidden files out of an extension it unpacks, so nothing in workspace/ may be one (v0.1.0 shipped
+/// `.cargo/config.toml` there, and nixos's folder stopped at it: Pointman thread 17421).
+#[test]
+fn nothing_in_workspace_is_hidden() {
+    fn walk(dir: &std::path::Path, hidden: &mut Vec<String>) {
+        for entry in std::fs::read_dir(dir).unwrap().flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if name.starts_with('.') {
+                hidden.push(entry.path().display().to_string());
+            } else if entry.path().is_dir() {
+                walk(&entry.path(), hidden);
+            }
+        }
+    }
+    let mut hidden = vec![];
+    walk(&std::path::Path::new(ROOT).join("workspace"), &mut hidden);
+    assert!(hidden.is_empty(), "hidden in workspace/: {hidden:?}");
 }

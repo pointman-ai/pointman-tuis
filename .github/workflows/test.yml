@@ -19,7 +19,8 @@ jobs:
         run: |
           dir=$(mktemp -d)
           cp -R workspace/. "$dir"/
-          mkdir -p "$dir/crates"
+          mkdir -p "$dir/crates" "$dir/.cargo"
+          mv "$dir/cargo-config.toml" "$dir/.cargo/config.toml"
           cp -R "$dir/starter" "$dir/crates/demo"
           sed -i.bak 's/tui-starter/tui-demo/g' "$dir/crates/demo/Cargo.toml"
           (cd "$dir" && cargo build --release -p tui-demo && cargo test -p kit -p tui-demo && target/release/tui-demo --snapshot | head -5)

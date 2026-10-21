@@ -44,8 +44,10 @@ fn dest() -> PathBuf {
 }
 
 fn install(h: &Handle, state: &Mutex<State>) {
-    let got = seed().and_then(|s| Ok(tuis::install(&s, &dest())?));
+    // held through the install: the start and the hourly lane both run one as it starts, and two at once would
+    // trip over each other's files
     let mut st = state.lock().unwrap_or_else(|e| e.into_inner());
+    let got = seed().and_then(|s| Ok(tuis::install(&s, &dest())?));
     match got {
         Ok(r) => {
             if !r.written.is_empty() || !r.removed.is_empty() {
@@ -56,7 +58,11 @@ fn install(h: &Handle, state: &Mutex<State>) {
                     if r.removed.is_empty() { String::new() } else { format!("; took out {}", r.removed.join(", ")) }
                 ));
             }
-            st.problem = None;
+            if !r.problems.is_empty() {
+                h.log(format!("the TUI folder {}: couldn't write {}", dest().display(), r.problems.join("; ")));
+            }
+            st.problem =
+                (!r.problems.is_empty()).then(|| format!("parts couldn't be written: {}", r.problems.join("; ")));
             st.installed = true;
         }
         Err(e) => {
@@ -70,9 +76,7 @@ fn health(state: &State) -> Value {
     let part = |id: &str, name: &str, state: &str, why: String| json!({"id": id, "kind": id, "name": name, "state": state, "needs": [], "why": why});
     let dest = dest();
     let folder = match (&state.problem, state.installed) {
-        (Some(p), _) => {
-            part("folder", "The TUI folder", "failing", format!("{} couldn't be made: {p}", dest.display()))
-        }
+        (Some(p), _) => part("folder", "The TUI folder", "failing", format!("{}: {p}", dest.display())),
         (None, false) => part("folder", "The TUI folder", "unknown", "not made yet".into()),
         (None, true) => {
             let names = tuis::tuis(&dest);
