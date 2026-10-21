@@ -202,12 +202,16 @@ impl<T: Tui> App<T> {
                 f.render_widget(Paragraph::new(says).wrap(Wrap { trim: true }).block(boxed("")), body);
             }
         }
-        let keys = if tabs {
-            " tab screens  ↑↓ move  ⏎ open  esc back  r refresh  ? keys  q quit"
-        } else {
-            " ↑↓ move  ⏎ open  esc back  r refresh  ? keys  q quit"
-        };
-        f.render_widget(Paragraph::new(Line::from(keys).style(dim())), bottom);
+        // the longest that fits: a narrow panel (a phone's) keeps `? keys` and `q quit` whole
+        let all = [
+            if tabs { " tab screens  ↑↓ move  ⏎ open  esc back  r refresh  ? keys  q quit" } else { "" },
+            " ↑↓ move  ⏎ open  esc back  r refresh  ? keys  q quit",
+            " ↑↓ move  ⏎ open  r refresh  ? keys  q quit",
+            " ? keys  q quit",
+        ];
+        let width = bottom.width as usize;
+        let keys = all.iter().find(|k| !k.is_empty() && k.chars().count() <= width).unwrap_or(&all[3]);
+        f.render_widget(Paragraph::new(Line::from(*keys).style(dim())), bottom);
         if self.help {
             self.draw_help(f, body);
         }
@@ -546,6 +550,8 @@ mod tests {
         assert!(has(&lines, "Next or previous screen") && has(&lines, "Eat it"), "help, with the TUI's own keys");
         app.key(key(KeyCode::Esc));
         assert!(!has(&snapshot(&app, 80, 24), "Eat it"), "esc closes help first");
+        let narrow = snapshot(&app, 50, 12);
+        assert_eq!(narrow[11], " ↑↓ move  ⏎ open  r refresh  ? keys  q quit", "the keys that fit, never cut");
         assert!(app.at().open, "and the row stays open");
     }
 
