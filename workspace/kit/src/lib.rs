@@ -95,13 +95,7 @@ pub struct App<T: Tui> {
 
 impl<T: Tui> App<T> {
     pub fn new(tui: T) -> Self {
-        App {
-            tui,
-            data: None,
-            at: At::default(),
-            help: false,
-            news: News::Loading,
-        }
+        App { tui, data: None, at: At::default(), help: false, news: News::Loading }
     }
 
     pub fn at(&self) -> At {
@@ -125,10 +119,7 @@ impl<T: Tui> App<T> {
     }
 
     fn rows(&self) -> usize {
-        self.data
-            .as_ref()
-            .map(|d| self.tui.rows(d, self.at.screen))
-            .unwrap_or(0)
+        self.data.as_ref().map(|d| self.tui.rows(d, self.at.screen)).unwrap_or(0)
     }
 
     fn row_in_bounds(&mut self) {
@@ -140,11 +131,7 @@ impl<T: Tui> App<T> {
 
     fn go(&mut self, by: isize) {
         let n = self.tui.screens().len().max(1) as isize;
-        self.at = At {
-            screen: (self.at.screen as isize + by).rem_euclid(n) as usize,
-            row: 0,
-            open: false,
-        };
+        self.at = At { screen: (self.at.screen as isize + by).rem_euclid(n) as usize, row: 0, open: false };
     }
 
     /// A key: what it asks for next.
@@ -184,20 +171,16 @@ impl<T: Tui> App<T> {
             Constraint::Length(1),
         ])
         .areas(f.area());
-        let title = Line::from(Span::styled(
-            format!(" {}", self.tui.title()),
-            Style::new().add_modifier(Modifier::BOLD),
-        ));
+        let title =
+            Line::from(Span::styled(format!(" {}", self.tui.title()), Style::new().add_modifier(Modifier::BOLD)));
         f.render_widget(Paragraph::new(title), top);
         let news = match &self.news {
             News::Loading => Line::from("loading… ").style(dim()),
             News::Updated(t) => Line::from(format!("updated {} ", ago(*t))).style(dim()),
             News::Failed(e) => Line::from(format!("{e} ")).style(bad()),
         };
-        let width =
-            (news.width() as u16).min(top.width.saturating_sub(self.tui.title().len() as u16 + 2));
-        let [_, right] =
-            Layout::horizontal([Constraint::Min(0), Constraint::Length(width)]).areas(top);
+        let width = (news.width() as u16).min(top.width.saturating_sub(self.tui.title().len() as u16 + 2));
+        let [_, right] = Layout::horizontal([Constraint::Min(0), Constraint::Length(width)]).areas(top);
         f.render_widget(Paragraph::new(news.right_aligned()), right);
         if tabs {
             f.render_widget(
@@ -205,12 +188,7 @@ impl<T: Tui> App<T> {
                     .select(self.at.screen)
                     .divider(" ")
                     .style(dim())
-                    .highlight_style(
-                        Style::new()
-                            .fg(Color::Black)
-                            .bg(Color::Cyan)
-                            .add_modifier(Modifier::BOLD),
-                    ),
+                    .highlight_style(Style::new().fg(Color::Black).bg(Color::Cyan).add_modifier(Modifier::BOLD)),
                 bar,
             );
         }
@@ -221,12 +199,7 @@ impl<T: Tui> App<T> {
                     News::Failed(e) => Line::from(e.clone()).style(bad()),
                     _ => Line::from("Loading…").style(dim()),
                 };
-                f.render_widget(
-                    Paragraph::new(says)
-                        .wrap(Wrap { trim: true })
-                        .block(boxed("")),
-                    body,
-                );
+                f.render_widget(Paragraph::new(says).wrap(Wrap { trim: true }).block(boxed("")), body);
             }
         }
         let keys = if tabs {
@@ -256,20 +229,9 @@ impl<T: Tui> App<T> {
             rows.push((k.into(), d.into()));
         }
         rows.extend(self.tui.keys());
-        let lines: Vec<Line> = rows
-            .iter()
-            .map(|(k, d)| Line::from(format!("{k:<12}{d}")))
-            .collect();
-        let (w, h) = (
-            44.min(area.width),
-            (lines.len() as u16 + 2).min(area.height),
-        );
-        let at = Rect::new(
-            area.x + (area.width - w) / 2,
-            area.y + (area.height - h) / 2,
-            w,
-            h,
-        );
+        let lines: Vec<Line> = rows.iter().map(|(k, d)| Line::from(format!("{k:<12}{d}"))).collect();
+        let (w, h) = (44.min(area.width), (lines.len() as u16 + 2).min(area.height));
+        let at = Rect::new(area.x + (area.width - w) / 2, area.y + (area.height - h) / 2, w, h);
         f.render_widget(Clear, at);
         f.render_widget(Paragraph::new(lines).block(boxed("Keys")), at);
     }
@@ -285,35 +247,21 @@ pub fn main<T: Tui>(tui: T) -> Result<()> {
         return Ok(());
     }
     if !(std::io::stdin().is_terminal() && std::io::stdout().is_terminal()) {
-        bail!(
-            "{} draws in a terminal: run it in one, or with --snapshot to print a frame",
-            tui.title()
-        );
+        bail!("{} draws in a terminal: run it in one, or with --snapshot to print a frame", tui.title());
     }
     run(tui)
 }
 
 fn snapshot_from_args<T: Tui>(tui: T, args: &[String]) -> Result<Vec<String>> {
-    let after = |flag: &str| {
-        args.iter()
-            .position(|a| a == flag)
-            .and_then(|i| args.get(i + 1))
-    };
+    let after = |flag: &str| args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1));
     let (w, h) = match after("--size") {
         Some(s) => {
             let (w, h) = s.split_once('x').context("--size WxH, like 80x24")?;
-            (
-                w.parse().context("--size WxH")?,
-                h.parse().context("--size WxH")?,
-            )
+            (w.parse().context("--size WxH")?, h.parse().context("--size WxH")?)
         }
         None => (80, 24),
     };
-    let number = |flag: &str| {
-        after(flag)
-            .map(|n| n.parse::<usize>().with_context(|| format!("{flag} N")))
-            .transpose()
-    };
+    let number = |flag: &str| after(flag).map(|n| n.parse::<usize>().with_context(|| format!("{flag} N"))).transpose();
     let at = At {
         screen: number("--screen")?.unwrap_or(0),
         row: number("--row")?.unwrap_or(0),
@@ -322,10 +270,7 @@ fn snapshot_from_args<T: Tui>(tui: T, args: &[String]) -> Result<Vec<String>> {
     let got = (tui.loader())().map_err(|e| format!("{e:#}"));
     let mut app = App::new(tui);
     app.took(got);
-    app.at = At {
-        screen: at.screen.min(app.tui.screens().len().saturating_sub(1)),
-        ..at
-    };
+    app.at = At { screen: at.screen.min(app.tui.screens().len().saturating_sub(1)), ..at };
     app.row_in_bounds();
     Ok(snapshot(&app, w, h))
 }
@@ -336,13 +281,7 @@ pub fn snapshot<T: Tui>(app: &App<T>, width: u16, height: u16) -> Vec<String> {
     term.draw(|f| app.draw(f)).expect("a drawn frame");
     let buf = term.backend().buffer().clone();
     (0..height)
-        .map(|y| {
-            (0..width)
-                .map(|x| buf[(x, y)].symbol().to_string())
-                .collect::<String>()
-                .trim_end()
-                .to_string()
-        })
+        .map(|y| (0..width).map(|x| buf[(x, y)].symbol().to_string()).collect::<String>().trim_end().to_string())
         .collect()
 }
 
@@ -400,9 +339,7 @@ pub fn boxed(title: &str) -> Block<'_> {
 /// A list in a box with the person's row picked, scrolled to keep it in view.
 pub fn list(f: &mut Frame, area: Rect, title: &str, items: Vec<ListItem>, at: &At) {
     let mut state = ListState::default().with_selected((!items.is_empty()).then_some(at.row));
-    let list = List::new(items)
-        .block(boxed(title))
-        .highlight_style(picked());
+    let list = List::new(items).block(boxed(title)).highlight_style(picked());
     f.render_stateful_widget(list, area, &mut state);
 }
 
@@ -412,12 +349,10 @@ pub fn list_and_detail(area: Rect, at: &At) -> (Rect, Option<Rect>) {
         return (area, None);
     }
     if area.width < 100 {
-        let [list, detail] =
-            Layout::vertical([Constraint::Percentage(40), Constraint::Percentage(60)]).areas(area);
+        let [list, detail] = Layout::vertical([Constraint::Percentage(40), Constraint::Percentage(60)]).areas(area);
         return (list, Some(detail));
     }
-    let [list, detail] =
-        Layout::horizontal([Constraint::Percentage(45), Constraint::Percentage(55)]).areas(area);
+    let [list, detail] = Layout::horizontal([Constraint::Percentage(45), Constraint::Percentage(55)]).areas(area);
     (list, Some(detail))
 }
 
@@ -434,19 +369,12 @@ pub fn bad() -> Style {
     Style::new().fg(Color::Red)
 }
 pub fn picked() -> Style {
-    Style::new()
-        .bg(Color::DarkGray)
-        .add_modifier(Modifier::BOLD)
+    Style::new().bg(Color::DarkGray).add_modifier(Modifier::BOLD)
 }
 
 /// How long ago, as people say it: "just now", "12s ago", "4m ago", "2h ago", "3d ago".
 pub fn ago(t: SystemTime) -> String {
-    ago_secs(
-        SystemTime::now()
-            .duration_since(t)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0),
-    )
+    ago_secs(SystemTime::now().duration_since(t).map(|d| d.as_secs() as i64).unwrap_or(0))
 }
 
 /// [`ago`] for a number of seconds.
@@ -462,10 +390,7 @@ pub fn ago_secs(secs: i64) -> String {
 
 /// Seconds since 1970, now.
 pub fn now() -> i64 {
-    SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
+    SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
 }
 
 // ------------------------------------------------------------------------------------------- for TUIs to load with
@@ -479,10 +404,22 @@ pub fn run_out(program: &str, args: &[&str], wait: Duration) -> Result<String> {
         .stderr(std::process::Stdio::piped())
         .spawn()
         .with_context(|| format!("running {program}"))?;
+    // read both while it runs: a command whose output fills the pipe (64 KB) blocks until someone reads it
+    let drain = |pipe: Option<Box<dyn std::io::Read + Send>>| {
+        std::thread::spawn(move || {
+            let mut buf = Vec::new();
+            if let Some(mut p) = pipe {
+                let _ = p.read_to_end(&mut buf);
+            }
+            buf
+        })
+    };
+    let out = drain(child.stdout.take().map(|p| Box::new(p) as Box<dyn std::io::Read + Send>));
+    let err = drain(child.stderr.take().map(|p| Box::new(p) as Box<dyn std::io::Read + Send>));
     let started = Instant::now();
-    loop {
-        if child.try_wait()?.is_some() {
-            break;
+    let status = loop {
+        if let Some(status) = child.try_wait()? {
+            break status;
         }
         if started.elapsed() > wait {
             let _ = child.kill();
@@ -490,18 +427,13 @@ pub fn run_out(program: &str, args: &[&str], wait: Duration) -> Result<String> {
             bail!("{program} took over {}s", wait.as_secs());
         }
         std::thread::sleep(Duration::from_millis(20));
+    };
+    let (out, err) = (out.join().unwrap_or_default(), err.join().unwrap_or_default());
+    if !status.success() {
+        let err = String::from_utf8_lossy(&err);
+        bail!("{program}: {}", err.lines().find(|l| !l.trim().is_empty()).unwrap_or("failed"));
     }
-    let out = child.wait_with_output()?;
-    if !out.status.success() {
-        let err = String::from_utf8_lossy(&out.stderr);
-        bail!(
-            "{program}: {}",
-            err.lines()
-                .find(|l| !l.trim().is_empty())
-                .unwrap_or("failed")
-        );
-    }
-    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+    Ok(String::from_utf8_lossy(&out).into_owned())
 }
 
 /// A command's output as lines, empty ones left out.
@@ -546,18 +478,9 @@ mod tests {
         }
         fn draw(&self, f: &mut Frame, area: Rect, data: &Self::Data, at: &At) {
             let (l, detail) = list_and_detail(area, at);
-            list(
-                f,
-                l,
-                "Bowl",
-                data.iter().map(|d| ListItem::new(*d)).collect(),
-                at,
-            );
+            list(f, l, "Bowl", data.iter().map(|d| ListItem::new(*d)).collect(), at);
             if let Some(d) = detail {
-                f.render_widget(
-                    Paragraph::new(format!("all about {}", data[at.row])).block(boxed("")),
-                    d,
-                );
+                f.render_widget(Paragraph::new(format!("all about {}", data[at.row])).block(boxed("")), d);
             }
         }
         fn keys(&self) -> Vec<(String, String)> {
@@ -595,14 +518,7 @@ mod tests {
         app.key(key(KeyCode::Esc));
         assert!(!app.at().open);
         app.key(key(KeyCode::Tab));
-        assert_eq!(
-            app.at(),
-            At {
-                screen: 1,
-                row: 0,
-                open: false
-            }
-        );
+        assert_eq!(app.at(), At { screen: 1, row: 0, open: false });
         app.key(key(KeyCode::Enter));
         assert!(!app.at().open, "nothing to open on a screen without a list");
         app.key(key(KeyCode::BackTab));
@@ -610,10 +526,7 @@ mod tests {
         assert_eq!(app.at().screen, 1, "round the ends");
         assert_eq!(app.key(key(KeyCode::Char('r'))), Step::Refresh);
         assert_eq!(app.key(key(KeyCode::Char('q'))), Step::Quit);
-        assert_eq!(
-            app.key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)),
-            Step::Quit
-        );
+        assert_eq!(app.key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)), Step::Quit);
     }
 
     #[test]
@@ -621,39 +534,18 @@ mod tests {
         let mut app = loaded();
         let lines = snapshot(&app, 80, 24);
         assert_eq!(lines.len(), 24);
-        assert!(
-            lines[0].starts_with(" Fruit") && lines[0].ends_with("updated just now"),
-            "{}",
-            lines[0]
-        );
-        assert!(
-            lines[1].contains("Bowl") && lines[1].contains("Empty"),
-            "tabs: {}",
-            lines[1]
-        );
+        assert!(lines[0].starts_with(" Fruit") && lines[0].ends_with("updated just now"), "{}", lines[0]);
+        assert!(lines[1].contains("Bowl") && lines[1].contains("Empty"), "tabs: {}", lines[1]);
         assert!(has(&lines, "apple") && has(&lines, "fig"));
-        assert!(
-            lines[23].contains("tab screens") && lines[23].contains("q quit"),
-            "{}",
-            lines[23]
-        );
+        assert!(lines[23].contains("tab screens") && lines[23].contains("q quit"), "{}", lines[23]);
         app.key(key(KeyCode::Down));
         app.key(key(KeyCode::Enter));
-        assert!(
-            has(&snapshot(&app, 80, 24), "all about pear"),
-            "the open row's detail, below the list at 80"
-        );
+        assert!(has(&snapshot(&app, 80, 24), "all about pear"), "the open row's detail, below the list at 80");
         app.key(key(KeyCode::Char('?')));
         let lines = snapshot(&app, 80, 24);
-        assert!(
-            has(&lines, "Next or previous screen") && has(&lines, "Eat it"),
-            "help, with the TUI's own keys"
-        );
+        assert!(has(&lines, "Next or previous screen") && has(&lines, "Eat it"), "help, with the TUI's own keys");
         app.key(key(KeyCode::Esc));
-        assert!(
-            !has(&snapshot(&app, 80, 24), "Eat it"),
-            "esc closes help first"
-        );
+        assert!(!has(&snapshot(&app, 80, 24), "Eat it"), "esc closes help first");
         assert!(app.at().open, "and the row stays open");
     }
 
@@ -667,20 +559,13 @@ mod tests {
         let mut fresh = App::new(Fruit);
         assert!(has(&snapshot(&fresh, 80, 24), "Loading…"));
         fresh.took(Err("no git here".into()));
-        assert!(
-            snapshot(&fresh, 80, 24)
-                .iter()
-                .filter(|l| l.contains("no git here"))
-                .count()
-                >= 2
-        );
+        assert!(snapshot(&fresh, 80, 24).iter().filter(|l| l.contains("no git here")).count() >= 2);
     }
 
     #[test]
     fn a_snapshot_from_the_command_line() {
         let args = |s: &str| s.split(' ').map(str::to_string).collect::<Vec<_>>();
-        let lines =
-            snapshot_from_args(Fruit, &args("--snapshot --size 100x10 --row 2 --open")).unwrap();
+        let lines = snapshot_from_args(Fruit, &args("--snapshot --size 100x10 --row 2 --open")).unwrap();
         assert_eq!(lines.len(), 10);
         assert!(has(&lines, "all about fig"), "{lines:#?}");
         let lines = snapshot_from_args(Fruit, &args("--snapshot --screen 9")).unwrap();
@@ -690,38 +575,17 @@ mod tests {
 
     #[test]
     fn commands_and_how_long_ago() {
-        assert_eq!(
-            run_lines("sh", &["-c", "echo a; echo; echo b"]).unwrap(),
-            ["a", "b"]
-        );
-        assert_eq!(
-            run_json("sh", &["-c", "echo '{\"n\": 1}'"]).unwrap()["n"],
-            1
-        );
-        let e = run_out(
-            "sh",
-            &["-c", "echo nope >&2; exit 3"],
-            Duration::from_secs(5),
-        )
-        .unwrap_err()
-        .to_string();
+        assert_eq!(run_lines("sh", &["-c", "echo a; echo; echo b"]).unwrap(), ["a", "b"]);
+        assert_eq!(run_json("sh", &["-c", "echo '{\"n\": 1}'"]).unwrap()["n"], 1);
+        let e = run_out("sh", &["-c", "echo nope >&2; exit 3"], Duration::from_secs(5)).unwrap_err().to_string();
         assert_eq!(e, "sh: nope");
         assert!(run_out("sleep", &["5"], Duration::from_millis(200)).is_err());
+        // more than a pipe holds (64 KB): read while it runs, so it finishes rather than blocking till the limit
+        let big = run_out("sh", &["-c", "yes 0123456789abcdef | head -n 20000"], Duration::from_secs(5)).unwrap();
+        assert_eq!(big.len(), 20_000 * 17);
         assert_eq!(
-            (
-                ago_secs(2),
-                ago_secs(42),
-                ago_secs(300),
-                ago_secs(7200),
-                ago_secs(200_000)
-            ),
-            (
-                "just now".into(),
-                "42s ago".into(),
-                "5m ago".into(),
-                "2h ago".into(),
-                "2d ago".into()
-            )
+            (ago_secs(2), ago_secs(42), ago_secs(300), ago_secs(7200), ago_secs(200_000)),
+            ("just now".into(), "42s ago".into(), "5m ago".into(), "2h ago".into(), "2d ago".into())
         );
     }
 }
