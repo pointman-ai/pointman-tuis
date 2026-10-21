@@ -1,0 +1,19 @@
+# This node's TUIs (pointman-tuis keeps this file, the kit, the starter and the README; edit crates/ and tuis.toml).
+# One crate per TUI in crates/<name>, package and binary tui-<name>, all sharing the kit and one target/ folder, so a
+# new TUI builds in seconds: `cargo build --release -p tui-<name>`, then `target/release/tui-<name>`.
+[workspace]
+resolver = "2"
+members = ["kit", "crates/*"]
+
+[workspace.package]
+edition = "2021"
+publish = false
+
+[workspace.dependencies]
+anyhow = "1"
+ratatui = "0.30"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+strip = true

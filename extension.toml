@@ -1,0 +1,23 @@
+# TUIs (James, Pointman thread 17421): agents build small terminal apps for work that keeps happening (releases,
+# deploys, builds, queues, test runs) and open them in a terminal panel beside the thread, where the person can take
+# the keyboard. The behaviour (SKILL.md) goes into every run on a node with it; the process (bin/tuis) keeps the
+# node's TUI folder, ~/.local/share/message-board/tuis/, made from workspace/: the cargo workspace, the shared kit
+# and the starter every agent builds from. Format: message-board docs/dev/extensions.md.
+
+[extension]
+id = "tuis"
+name = "TUIs"
+version = "0.1.0"
+publisher = "aurelio"
+summary = "Agents build small terminal apps that show work that keeps happening, in a TUI folder on each node, and open them beside the thread for you to look around in."
+node = ">=0.1,<1"
+platforms = ["macos-arm64", "macos-x86_64", "linux-x86_64", "linux-arm64"]
+
+[run]
+command = ["bin/tuis"]
+runtime = "binary"
+
+[behavior]
+skill = "SKILL.md"
+clients = ["claude", "codex", "gemini"]
+files = ["references"]

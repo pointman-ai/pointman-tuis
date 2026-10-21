@@ -1,0 +1,3 @@
+# Small builds on shared machines: no incremental cache (it grows to gigabytes), one target folder for every TUI.
+[build]
+incremental = false

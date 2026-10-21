@@ -1,0 +1,25 @@
+name: test
+on: [push, pull_request]
+jobs:
+  test:
+    strategy:
+      matrix:
+        runner: [ubuntu-24.04, macos-14]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+      # the node's TUI folder as this release makes it: the starter, copied to crates/, builds and draws a frame
+      - name: The starter builds from workspace/, as on a node
+        run: |
+          dir=$(mktemp -d)
+          cp -R workspace/. "$dir"/
+          mkdir -p "$dir/crates"
+          cp -R "$dir/starter" "$dir/crates/demo"
+          sed -i.bak 's/tui-starter/tui-demo/g' "$dir/crates/demo/Cargo.toml"
+          (cd "$dir" && cargo build --release -p tui-demo && cargo test -p kit -p tui-demo && target/release/tui-demo --snapshot | head -5)
