@@ -4,7 +4,7 @@
 //!
 //! What's the extension's is written again whenever it differs (so a release reaches every node): `Cargo.toml`,
 //! `.cargo/config.toml` (shipped as `cargo-config.toml`: the node leaves hidden files out of an extension it unpacks),
-//! `README.md`, and the folders `kit/` and `crates/_starter/` (the starter, a member so `crates/*` is never empty: cargo
+//! `README.md`, `rustfmt.toml` (the repo's style, so `cargo fmt` in the folder leaves the kit as it ships), and the folders `kit/` and `crates/_starter/` (the starter, a member so `crates/*` is never empty: cargo
 //! refuses a workspace whose glob matches nothing), which are made exactly like the release's. `tuis.toml` is written
 //! only when it isn't there: agents add to it. Nothing else is touched: the rest of `crates/` (the agents' TUIs),
 //! `Cargo.lock` and `target/` are theirs. One part that can't be written doesn't stop the others: each is said.
@@ -14,8 +14,12 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 /// Files the extension keeps as the release has them: where each is in the release's `workspace/`, and on the node.
-pub const KEPT_FILES: [(&str, &str); 3] =
-    [("Cargo.toml", "Cargo.toml"), ("cargo-config.toml", ".cargo/config.toml"), ("README.md", "README.md")];
+pub const KEPT_FILES: [(&str, &str); 4] = [
+    ("Cargo.toml", "Cargo.toml"),
+    ("cargo-config.toml", ".cargo/config.toml"),
+    ("README.md", "README.md"),
+    ("rustfmt.toml", "rustfmt.toml"),
+];
 /// Folders the extension keeps exactly as the release has them (files it no longer has go).
 pub const KEPT_DIRS: [&str; 2] = ["kit", "crates/_starter"];
 /// Folders an earlier release made that this one doesn't: taken out (0.1.0 and 0.1.1 kept the starter at the top).
@@ -189,6 +193,7 @@ mod tests {
         fs::write(s.join("Cargo.toml"), "[workspace]\n").unwrap();
         fs::write(s.join("cargo-config.toml"), "[build]\n").unwrap();
         fs::write(s.join("README.md"), "readme\n").unwrap();
+        fs::write(s.join("rustfmt.toml"), "max_width = 120\n").unwrap();
         fs::write(s.join("tuis.toml"), "# index\n").unwrap();
         fs::write(s.join("kit/Cargo.toml"), "[package]\nname = \"kit\"\n").unwrap();
         fs::write(s.join("kit/src/lib.rs"), "// kit 1\n").unwrap();
@@ -202,7 +207,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let (s, d) = (seed(dir.path()), dir.path().join("tuis"));
         let first = install(&s, &d).unwrap();
-        assert_eq!(first.written.len(), 8, "{first:?}");
+        assert_eq!(first.written.len(), 9, "{first:?}");
         assert!(d.join("crates").is_dir() && d.join("kit/src/lib.rs").is_file() && d.join("tuis.toml").is_file());
         assert_eq!(fs::read_to_string(d.join(".cargo/config.toml")).unwrap(), "[build]\n", "from cargo-config.toml");
         assert!(first.problems.is_empty(), "{first:?}");
