@@ -409,14 +409,17 @@ pub fn run_out(program: &str, args: &[&str], wait: Duration) -> Result<String> {
         .spawn()
         .with_context(|| format!("running {program}"))?;
     // read both while it runs: a command whose output fills the pipe (64 KB) blocks until someone reads it
+    // each pipe's bytes come back on a channel, so waiting for them has a limit too
     let drain = |pipe: Option<Box<dyn std::io::Read + Send>>| {
+        let (tx, rx) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
             let mut buf = Vec::new();
             if let Some(mut p) = pipe {
                 let _ = p.read_to_end(&mut buf);
             }
-            buf
-        })
+            let _ = tx.send(buf);
+        });
+        rx
     };
     let out = drain(child.stdout.take().map(|p| Box::new(p) as Box<dyn std::io::Read + Send>));
     let err = drain(child.stderr.take().map(|p| Box::new(p) as Box<dyn std::io::Read + Send>));
@@ -432,7 +435,11 @@ pub fn run_out(program: &str, args: &[&str], wait: Duration) -> Result<String> {
         }
         std::thread::sleep(Duration::from_millis(20));
     };
-    let (out, err) = (out.join().unwrap_or_default(), err.join().unwrap_or_default());
+    // a child it left running in the background can hold the pipes open after it exits: give up at the limit
+    let left = |rx: std::sync::mpsc::Receiver<Vec<u8>>| rx.recv_timeout(wait.saturating_sub(started.elapsed()));
+    let (Ok(out), Ok(err)) = (left(out), left(err)) else {
+        bail!("{program} left its output open past {}s", wait.as_secs());
+    };
     if !status.success() {
         let err = String::from_utf8_lossy(&err);
         bail!("{program}: {}", err.lines().find(|l| !l.trim().is_empty()).unwrap_or("failed"));
@@ -589,6 +596,11 @@ mod tests {
         // more than a pipe holds (64 KB): read while it runs, so it finishes rather than blocking till the limit
         let big = run_out("sh", &["-c", "yes 0123456789abcdef | head -n 20000"], Duration::from_secs(5)).unwrap();
         assert_eq!(big.len(), 20_000 * 17);
+        // a background child holding the output open: the limit still holds
+        let started = Instant::now();
+        let e = run_out("sh", &["-c", "sleep 5 & echo started"], Duration::from_millis(500)).unwrap_err().to_string();
+        assert!(e.contains("left its output open"), "{e}");
+        assert!(started.elapsed() < Duration::from_secs(3));
         assert_eq!(
             (ago_secs(2), ago_secs(42), ago_secs(300), ago_secs(7200), ago_secs(200_000)),
             ("just now".into(), "42s ago".into(), "5m ago".into(), "2h ago".into(), "2d ago".into())
