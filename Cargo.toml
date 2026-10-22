@@ -1,6 +1,6 @@
 [package]
 name = "tuis"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 description = "TUIs for Pointman: agents build small terminal apps that show work that keeps happening, in a TUI folder this sets up on each node."
 license = "MIT"

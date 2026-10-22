@@ -13,16 +13,17 @@ Your person can't see what you see: release branches, deploys, builds, queues. W
 
 **Building one:** for something that repeats or moves, never for a one-off answer.
 1. `cp -R cmd/_starter cmd/<name>`, and add `[tui.<name>]` to `tuis.toml`.
-2. Make the kit's `Tui` yours: `Title`, `Screens`, `Load` (runs in the background), `Rows` and `Draw`. The kit does the terminal, the frame, the keys, help and refreshing. Keep parsing in plain functions and test them.
+2. Make the kit's `Tui` yours: `Title`, `Screens`, `Load` (runs in the background), `Rows` and `Draw`. The kit does the terminal, the frame, the keys, help and refreshing. Keep parsing in plain functions and test them. Embed `kit.Kept` beside `kit.Base`, so it opens at once with the data it last loaded and refreshes behind it (its data needs exported fields).
 3. It's read-only by default: anything that changes something asks first, on screen. It reads with the machine's own access (git, `gh`, `pointman status`), never anything that acts as your person or puts an approval card on their phone. Never put a secret on screen.
 4. `go vet ./cmd/<name>` and `go test ./cmd/<name>`, then `go build -o bin/<name> ./cmd/<name>`, and check `bin/<name> --snapshot` at 80×24 before anyone sees it.
 
 `references/guide.md` has the layouts that work, the data sources, and testing.
 
-**Showing it** is one call, so they see it fast (James, thread 17421: every step you take is time they wait):
-1. `open_pane(shell={"machine": <this machine>, "folder": "~/.local/share/message-board/tuis", "command": "bin/<name>"})`. The panel opens with the app already running: no prompt to wait for, nothing to type.
-2. Answer in the thread straight away, in a line or two, pointing at what's on screen. Say they can take the keyboard: `?` for help, `q` to quit (which closes the panel).
+**Showing it** takes two calls, so they see it fast (James, thread 17421: every step you take is time they wait):
+1. `open_pane(shell={"machine": <this machine>, "folder": "~/.local/share/message-board/tuis"})`.
+2. At once, `terminal_send(text="bin/<name>", keys=["Enter"])`. Don't wait for a prompt first: prompts differ (`❯`), and waiting for one cost 31 s. The send answers with the screen, so there's nothing more to read.
+3. Answer in the thread straight away, in a line or two, pointing at what's on screen. Say they can take the keyboard: `?` for help, `q` to quit.
 
-Rebuild first, in your own shell, only when you changed the app (`go build -o bin/<name> ./cmd/<name>`), never in theirs. Read the panel back (`terminal_read`) only when something may not have drawn.
+Rebuild first, in your own shell, only when you changed the app (`go build -o bin/<name> ./cmd/<name>`), never in theirs.
 
 No `go` on the PATH? The extension fetches Go into `~/.local/share/message-board/go`: use `~/.local/share/message-board/go/bin/go`. Its health check says which Go this machine builds with, or how far the fetch has got. Go needs no C compiler, on NixOS too.
