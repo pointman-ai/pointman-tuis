@@ -19,10 +19,10 @@ Your person can't see what you see: release branches, deploys, builds, queues. W
 
 `references/guide.md` has the layouts that work, the data sources, and testing.
 
-**Showing it:**
-1. Build first, in your own shell. Never build in theirs.
-2. `open_pane(shell={"machine": <this machine>, "folder": "~/.local/share/message-board/tuis"})`, then `terminal_wait` for the prompt.
-3. `terminal_send(text="bin/<name>", keys=["Enter"])`, then `terminal_read` to check it drew.
-4. Answer in the thread in a line or two, pointing at what's on screen. Say they can take the keyboard: `?` for help, `q` to quit.
+**Showing it** is one call, so they see it fast (James, thread 17421: every step you take is time they wait):
+1. `open_pane(shell={"machine": <this machine>, "folder": "~/.local/share/message-board/tuis", "command": "bin/<name>"})`. The panel opens with the app already running: no prompt to wait for, nothing to type.
+2. Answer in the thread straight away, in a line or two, pointing at what's on screen. Say they can take the keyboard: `?` for help, `q` to quit (which closes the panel).
+
+Rebuild first, in your own shell, only when you changed the app (`go build -o bin/<name> ./cmd/<name>`), never in theirs. Read the panel back (`terminal_read`) only when something may not have drawn.
 
 No `go` on the PATH? The extension fetches Go into `~/.local/share/message-board/go`: use `~/.local/share/message-board/go/bin/go`. Its health check says which Go this machine builds with, or how far the fetch has got. Go needs no C compiler, on NixOS too.

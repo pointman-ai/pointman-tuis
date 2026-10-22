@@ -42,11 +42,10 @@ Read with the machine's own access. Run commands with the kit's `RunOut`, `RunLi
 ## Showing it, step by step
 
 ```text
-go build -o bin/<name> ./cmd/<name>              # in your own shell, in ~/.local/share/message-board/tuis
-open_pane(shell={"machine": "mac-m4", "folder": "~/.local/share/message-board/tuis"})
-terminal_wait(<pane>)                            # for the prompt
-terminal_send(<pane>, text="bin/<name>", keys=["Enter"])
-terminal_read(<pane>)                            # check it drew
+go build -o bin/<name> ./cmd/<name>              # only if you changed the app: in your own shell, in the TUI folder
+open_pane(shell={"machine": "mac-m4", "folder": "~/.local/share/message-board/tuis", "command": "bin/<name>"})
 ```
 
-Then answer in the thread, pointing at what's on screen, and say they can take the keyboard. If they take the keys back, stop typing: the tools say when they have.
+The panel opens with the app running (`command`, one line: since release 30), so there's no prompt to wait for and nothing to type. Answer in the thread at once, pointing at what's on screen, and say they can take the keyboard; `q` quits the app and closes the panel. Read it back with `terminal_read` only if something may not have drawn. Each step you take is a wait for them, so take as few as you can.
+
+To change what's on screen while they watch (another screen, a row opened), type into the panel with `terminal_send` (`keys=["Tab"]`). If they take the keys back, stop: the tools say when they have.
