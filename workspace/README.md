@@ -29,6 +29,10 @@ No `go` on the PATH? The extension fetches Go into `~/.local/share/message-board
 3. Add its `[tui.<name>]` to `tuis.toml`.
 4. `go vet ./cmd/<name>`, `go test ./cmd/<name>`, build it, check `--snapshot` at 80×24, then run it in a terminal panel.
 
+## Shared with the person's other machines
+
+Every minute the extension syncs `cmd/<name>/` and its `[tui.<name>]` entry with the private repo pointman-ai/tuis, and each machine builds what comes in. An app goes out once it's built (`bin/<name>` newer than its files), as `<name>: from <machine>`. Taking an app's folder out here takes it out everywhere. An app changed here and on another machine since the last sync is a conflict: this machine's stays here, unshared, and the extension's health says where the shared one is.
+
 ## Rules for every app
 
 - **Read-only by default.** Anything that changes something asks first, on screen, and says what it will do.

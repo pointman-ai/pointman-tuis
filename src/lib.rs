@@ -15,6 +15,7 @@
 //! with it), never an agent's own `crates/<name>`.
 
 pub mod gofetch;
+pub mod share;
 
 use std::cmp::Ordering;
 use std::fs;
