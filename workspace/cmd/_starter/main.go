@@ -1,6 +1,9 @@
 // The starter: copy this folder to begin a TUI (README.md, "Adding a TUI"). It shows the git repo it runs in: its
 // latest commits, each opening to what it changed, and its branches. Keep its shape: load everything in Load (it
 // runs in the background), keep parsing in plain functions you can test, and draw with the kit.
+//
+// To open at once with the data it last loaded, embed kit.Kept beside kit.Base; its data then needs exported fields,
+// and a test that they survive JSON.
 package main
 
 import (

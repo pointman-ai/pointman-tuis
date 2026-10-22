@@ -78,6 +78,7 @@ type App[D any] struct {
 	updated time.Time // when the last load worked
 	failed  string    // why the last load failed, in one line; "" when it worked
 	loading bool
+	keep    string // where a Kept TUI's data is kept between runs; "" for one that isn't
 }
 
 // NewApp is a TUI with nothing loaded yet.
@@ -97,6 +98,7 @@ func (a *App[D]) Took(d D, err error) {
 		a.failed, _, _ = strings.Cut(err.Error(), "\n")
 	} else {
 		a.data, a.has, a.failed, a.updated = d, true, "", time.Now()
+		a.save()
 	}
 	a.rowInBounds()
 }
@@ -219,6 +221,8 @@ func (a *App[D]) topBar(w int) string {
 	title := " " + a.tui.Title()
 	var news string
 	switch {
+	case a.loading && a.has:
+		news = Dim.Render("updated " + Ago(a.updated) + " · refreshing ")
 	case a.loading:
 		news = Dim.Render("loading… ")
 	case a.failed != "":
@@ -287,7 +291,10 @@ func main[D any](t Tui[D], args []string) error {
 	if !term.IsTerminal(os.Stdin.Fd()) || !term.IsTerminal(os.Stdout.Fd()) {
 		return fmt.Errorf("%s draws in a terminal: run it in one, or with --snapshot to print a frame", t.Title())
 	}
-	_, err := tea.NewProgram(&model[D]{app: NewApp(t)}).Run()
+	app := NewApp(t)
+	app.keepIn(t)
+	app.restore()
+	_, err := tea.NewProgram(&model[D]{app: app}).Run()
 	return err
 }
 
@@ -330,6 +337,7 @@ func snapshotFromArgs[D any](t Tui[D], args []string) ([]string, error) {
 		return nil, err
 	}
 	app := NewApp(t)
+	app.keepIn(t)
 	app.Took(t.Load())
 	app.at = At{Screen: min(screen, max(0, len(t.Screens())-1)), Row: row}
 	app.rowInBounds()
