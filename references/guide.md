@@ -11,6 +11,15 @@ SKILL.md has the short version. This is for when you build or change one.
 | State that changes while they watch | Something that's already finished |
 | They want to look around themselves | They just want the answer |
 
+## Every machine runs it
+
+An app you build is shared within a minute with this person's other machines that have the extension, and built on each (macOS and Linux, NixOS too). So:
+
+- Find tools and files where they are on each machine (`exec.LookPath`, `os.UserHomeDir`), and say on screen when one isn't there, rather than failing.
+- No Mac-only path or command (`/opt/homebrew`, `open`, `pbcopy`, `~/Library`) without a check.
+- An app goes out once it's built, so a half-written one stays on this machine until you build it.
+- Changed on two machines at once? The extension's health says which app, and keeps each machine's own until the two are the same again.
+
 ## Layouts that work
 
 - **A list and its detail.** Releases on the left, the selected one's commits on the right. `Enter` opens it, `Esc` goes back.

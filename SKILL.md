@@ -16,6 +16,7 @@ Your person can't see what you see: release branches, deploys, builds, queues. W
 2. Make the kit's `Tui` yours: `Title`, `Screens`, `Load` (runs in the background), `Rows` and `Draw`. The kit does the terminal, the frame, the keys, help and refreshing. Keep parsing in plain functions and test them. Embed `kit.Kept` beside `kit.Base`, so it opens at once with the data it last loaded and refreshes behind it (its data needs exported fields).
 3. It's read-only by default: anything that changes something asks first, on screen. It reads with the machine's own access (git, `gh`, `pointman status`), never anything that acts as your person or puts an approval card on their phone. Never put a secret on screen.
 4. `go vet ./cmd/<name>` and `go test ./cmd/<name>`, then `go build -o bin/<name> ./cmd/<name>`, and check `bin/<name> --snapshot` at 80×24 before anyone sees it.
+5. Once built, it's shared with this person's other machines within a minute, and each builds it, so write it for every machine: no Mac-only path or command without a check that it's there.
 
 `references/guide.md` has the layouts that work, the data sources, and testing.
 
