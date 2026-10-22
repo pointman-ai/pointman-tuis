@@ -16,13 +16,13 @@ SKILL.md has the short version. This is for when you build or change one.
 - **A list and its detail.** Releases on the left, the selected one's commits on the right. `Enter` opens it, `Esc` goes back.
 - **A board of states.** One row per thing (a node, a branch, a job), with columns that each hold one word or number: version, state, age.
 - **A timeline.** What happened, newest first, with the time and who did it.
-- **The status bar** (from the kit) always shows when it last refreshed and what failed to load.
+- **The top bar** (from the kit) always shows when it last refreshed and what failed to load. The kit's `List`, `ListAndDetail` and `Boxed` draw the first two layouts; its styles (`kit.Dim`, `kit.Warn` and the rest) keep every app alike.
 
 Colour means state: green is done or live, yellow is waiting or running, red is failed. Always add a word too, because colour alone doesn't reach everyone.
 
 ## Data sources
 
-Read with the machine's own access. Run commands and parse their JSON (the kit has a helper).
+Read with the machine's own access. Run commands with the kit's `RunOut`, `RunLines` and `RunJSON[T]`: each has a time limit, and a failure says the command's first line of stderr.
 
 | What | Read it with |
 |---|---|
@@ -35,17 +35,17 @@ Read with the machine's own access. Run commands and parse their JSON (the kit h
 
 ## Testing
 
-- Keep data loading apart from drawing. Test the loader with saved command output in `tests/fixtures/`.
-- Test the frame at 80×24 with the kit's `snapshot`, and check the key lines, so a change that breaks the layout fails a test.
-- Before you show it, run `target/release/tui-<name> --snapshot` and read the frame.
+- Keep data loading apart from drawing. Parse in plain functions, and test them with saved command output in `cmd/<name>/testdata/`.
+- Test the frame at 80×24 with the kit's `Snapshot` (as the starter's `main_test.go` does), and check the key lines, so a change that breaks the layout fails a test.
+- Before you show it, run `bin/<name> --snapshot` and read the frame (`--size WxH`, `--screen N`, `--row N`, `--open` for other views).
 
 ## Showing it, step by step
 
 ```text
-cargo build --release -p tui-<name>              # in your own shell, in ~/.local/share/message-board/tuis
+go build -o bin/<name> ./cmd/<name>              # in your own shell, in ~/.local/share/message-board/tuis
 open_pane(shell={"machine": "mac-m4", "folder": "~/.local/share/message-board/tuis"})
 terminal_wait(<pane>)                            # for the prompt
-terminal_send(<pane>, text="target/release/tui-<name>", keys=["Enter"])
+terminal_send(<pane>, text="bin/<name>", keys=["Enter"])
 terminal_read(<pane>)                            # check it drew
 ```
 

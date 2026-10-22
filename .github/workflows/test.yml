@@ -14,16 +14,20 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
-      # the node's TUI folder as this release makes it: the starter, copied to crates/, builds and draws a frame
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: workspace/go.mod
+          cache: false
+      # the node's TUI folder as this release makes it: the kit's and the starter's tests pass, and the starter,
+      # copied to cmd/ as an agent would, vets, builds and draws a frame (a fresh node: only the release's files)
       - name: The starter builds from workspace/, as on a node
         run: |
           dir=$(mktemp -d)
           cp -R workspace/. "$dir"/
-          mkdir -p "$dir/crates" "$dir/.cargo"
-          mv "$dir/cargo-config.toml" "$dir/.cargo/config.toml"
-          # a fresh node: only the release's files, no TUI of its own yet, must already be a workspace that builds
-          (cd "$dir" && cargo build --release -p kit -p tui-starter)
-          cp -R "$dir/crates/_starter" "$dir/crates/demo"
-          sed -i.bak 's/tui-starter/tui-demo/g' "$dir/crates/demo/Cargo.toml"
-          rm "$dir/crates/demo/Cargo.toml.bak"
-          (cd "$dir" && cargo build --release -p tui-demo && cargo test -p kit -p tui-demo && target/release/tui-demo --snapshot | head -5)
+          cd "$dir"
+          go vet ./kit ./cmd/_starter
+          go test ./kit ./cmd/_starter
+          cp -R cmd/_starter cmd/demo
+          go vet ./...
+          go build -o bin/demo ./cmd/demo
+          bin/demo --snapshot | head -5

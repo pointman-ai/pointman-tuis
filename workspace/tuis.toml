@@ -1,9 +1,9 @@
-# This node's TUIs, one table each. Read it before building a new one: reuse or extend a TUI that shows the same
-# thing. Add yours here when you add its crate.
+# This node's TUIs, one table each. Read it before building a new one: reuse or extend an app that shows the same
+# thing. Add yours here when you add its folder in cmd/.
 #
 # [tui.<name>]
 # title    = "What it shows, in a person's words"
-# command  = "target/release/tui-<name>"   # from this folder, after `cargo build --release -p tui-<name>`
+# command  = "bin/<name>"                   # from this folder, after `go build -o bin/<name> ./cmd/<name>`
 # shows    = ["where its data comes from: commands, files, APIs"]
 # owner    = "@handle"                      # who keeps it working
 # project  = "~/Documents/<repo>"           # what it's about, if it's one project
