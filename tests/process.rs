@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 const ROOT: &str = env!("CARGO_MANIFEST_DIR");
 
 fn health(node: &StandIn) -> Value {
-    node.call("health.check", json!({})).expect("health.check")
+    node.call("health.check", json!({})).expect("health.check")["parts"].clone()
 }
 
 #[test]
@@ -25,9 +25,9 @@ fn it_makes_the_tui_folder_as_it_starts_and_health_says_where() {
         .start()
         .expect("started");
 
-    // done once health has a verdict on the folder (it says "unknown" until the first install has finished)
+    // done once health has a verdict on the folder (it has no state until the first install has finished)
     let until = Instant::now() + Duration::from_secs(10);
-    while health(&node)[0]["state"] == "unknown" && Instant::now() < until {
+    while health(&node)[0]["state"].is_null() && Instant::now() < until {
         std::thread::sleep(Duration::from_millis(25));
     }
     for made in ["go.mod", "go.sum", "README.md", "tuis.toml", "kit", "cmd/_starter", "bin"] {
@@ -39,16 +39,20 @@ fn it_makes_the_tui_folder_as_it_starts_and_health_says_where() {
 
     let parts = health(&node);
     let folder = &parts[0];
-    assert_eq!((folder["id"].as_str(), folder["state"].as_str()), (Some("folder"), Some("ok")), "{parts}");
+    assert_eq!((folder["id"].as_str(), folder["state"].as_str()), (Some("folder"), Some("STATE_OK")), "{parts}");
     assert!(folder["why"].as_str().unwrap().ends_with("no apps yet"), "{parts}");
     assert_eq!(parts[1]["id"], "go", "{parts}");
     // with no GitHub account in the vault it doesn't share, says how to start, and the folder works as before
     let until = Instant::now() + Duration::from_secs(10);
-    while health(&node)[2]["state"] == "unknown" && Instant::now() < until {
+    while health(&node)[2]["state"].is_null() && Instant::now() < until {
         std::thread::sleep(Duration::from_millis(25));
     }
     let sharing = &health(&node)[2];
-    assert_eq!((sharing["id"].as_str(), sharing["state"].as_str()), (Some("sharing"), Some("failing")), "{sharing}");
+    assert_eq!(
+        (sharing["id"].as_str(), sharing["state"].as_str()),
+        (Some("sharing"), Some("STATE_FAILING")),
+        "{sharing}"
+    );
     assert!(sharing["why"].as_str().unwrap().contains("`/github add`"), "{sharing}");
 
     // an agent adds one: health counts it, and a restart leaves it alone
