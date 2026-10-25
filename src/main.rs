@@ -13,8 +13,9 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use pointman_extension::protocol::{HealthCheckRequest, HealthCheckResponse, HealthFixRequest, HealthFixResponse};
+use pointman_extension::v1::health::{part, Part};
 use pointman_extension::{Extension, Handle};
-use serde_json::{json, Value};
 use tuis::share::{self, Base, Sharing, Synced, REPO};
 
 /// How often the folder, and Go, are checked again, in case something removed a file of the extension's.
@@ -154,10 +155,7 @@ fn ensure_go(h: &Handle, state: &Mutex<State>) {
 /// The vault's GitHub token for this machine, picked as the github extension picks it (`github.<label>`, the first
 /// by label). Asked for each round and kept only in memory.
 fn github_token(h: &Handle) -> Result<String, String> {
-    let listed = h
-        .request("secret.list", json!({"prefix": "github."}))
-        .map_err(|e| format!("couldn't list the vault's GitHub accounts ({e:#})"))?;
-    let mut names: Vec<&str> = listed["names"].as_array().into_iter().flatten().filter_map(Value::as_str).collect();
+    let mut names = h.secrets("github.").map_err(|e| format!("couldn't list the vault's GitHub accounts ({e:#})"))?;
     names.sort_unstable();
     let name = names.first().ok_or(NO_ACCOUNT)?;
     h.secret(name).map_err(|e| format!("couldn't open the vault's {name} ({e:#})"))
@@ -175,7 +173,7 @@ fn share(h: &Handle, state: &Mutex<State>) {
         _ => REPO.to_string(),
     };
     let node = h.node();
-    let state_dir = PathBuf::from(node["state_dir"].as_str().unwrap_or_default());
+    let state_dir = PathBuf::from(&node.state_dir);
     let clone = state_dir.join("shared");
     {
         let mut st = lock();
@@ -214,7 +212,13 @@ fn share(h: &Handle, state: &Mutex<State>) {
         folder: dest(),
         clone,
         remote,
-        machine: node["machine"].as_str().filter(|m| !m.is_empty()).unwrap_or("a machine").to_string(),
+        machine: node
+            .machine
+            .as_option()
+            .map(|m| m.value.as_str())
+            .filter(|m| !m.is_empty())
+            .unwrap_or("a machine")
+            .to_string(),
         git,
         index_seed: seed().ok().and_then(|s| std::fs::read_to_string(s.join("tuis.toml")).ok()).unwrap_or_default(),
         token,
@@ -274,8 +278,25 @@ fn ago(d: Duration) -> String {
     }
 }
 
-fn sharing(share: &Share) -> Value {
-    let part = |state: &str, why: String| json!({"id": "sharing", "kind": "sharing", "name": "Sharing", "state": state, "needs": [], "why": why});
+/// One of health's parts: `ok`, `failing`, or anything else for not known yet.
+fn health_part(id: &str, name: &str, state: &str, why: String) -> Part {
+    let state = match state {
+        "ok" => part::State::STATE_OK,
+        "failing" => part::State::STATE_FAILING,
+        _ => part::State::STATE_UNSPECIFIED,
+    };
+    Part {
+        id: id.into(),
+        kind: id.into(),
+        name: Some(name.into()),
+        state: state.into(),
+        why: Some(why),
+        ..Default::default()
+    }
+}
+
+fn sharing(share: &Share) -> Part {
+    let part = |state: &str, why: String| health_part("sharing", "Sharing", state, why);
     if share.off {
         return part("ok", "off on this machine (POINTMAN_TUIS_SHARE=off): its apps stay here".into());
     }
@@ -309,8 +330,8 @@ fn sharing(share: &Share) -> Value {
     part(state, why)
 }
 
-fn health(state: &State) -> Value {
-    let part = |id: &str, name: &str, state: &str, why: String| json!({"id": id, "kind": id, "name": name, "state": state, "needs": [], "why": why});
+fn health(state: &State) -> Vec<Part> {
+    let part = health_part;
     let dest = dest();
     let folder = match (&state.problem, state.installed) {
         (Some(p), _) => part("folder", "The TUI folder", "failing", format!("{}: {p}", dest.display())),
@@ -345,7 +366,7 @@ fn health(state: &State) -> Value {
         ),
         (None, Go::Idle) => part("go", "Go", "unknown", "no Go found yet: the extension fetches it".into()),
     };
-    json!([folder, go, sharing(&state.share)])
+    vec![folder, go, sharing(&state.share)]
 }
 
 fn main() -> anyhow::Result<()> {
@@ -363,9 +384,11 @@ fn main() -> anyhow::Result<()> {
     ext.every(every.unwrap_or(SHARE_EVERY), move |h: &Handle| share(h, &st), "sharing");
 
     let st = state.clone();
-    ext.method("health.check", move |_| Ok(health(&st.lock().unwrap_or_else(|e| e.into_inner()))));
-    ext.method("health.fix", move |_| {
-        Ok(json!({"message": "Nothing to fix from here: the extension fetches Go itself (hourly), or install it (https://go.dev/dl). Sharing the apps needs a GitHub account in the vault: `/github add` in any thread."}))
+    ext.on(move |_: HealthCheckRequest| {
+        Ok(HealthCheckResponse { parts: health(&st.lock().unwrap_or_else(|e| e.into_inner())), ..Default::default() })
+    });
+    ext.on(move |_: HealthFixRequest| {
+        Ok(HealthFixResponse { message: "Nothing to fix from here: the extension fetches Go itself (hourly), or install it (https://go.dev/dl). Sharing the apps needs a GitHub account in the vault: `/github add` in any thread.".into(), ..Default::default() })
     });
     ext.run()
 }
