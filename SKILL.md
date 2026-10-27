@@ -21,10 +21,10 @@ Your person can't see what you see: release branches, deploys, builds, queues. W
 `references/guide.md` has the layouts that work, the data sources, and testing.
 
 **Showing it** is one call, so they see it fast (James, thread 17421: every step you take is time they wait):
-1. `open_pane(shell={"machine": <this machine>, "folder": "~/.local/share/message-board/tuis", "command": "bin/<name>"})`. The panel opens with the app already running.
+1. `open_pane(shell={"folder": "~/.local/share/message-board/tuis", "command": "bin/<name>"}, machine=<this machine>)`. The panel opens with the app already running.
 2. Answer in the thread straight away, in a line or two, pointing at what's on screen. Say they can take the keyboard: `?` for help, `q` to quit (which closes the panel).
 
-An app from before 22 Oct opens it at a prompt instead (the panel's command came in then): if they say so, or `terminal_read` shows one, `terminal_send(text="bin/<name>", keys=["Enter"])`.
+An app from before 22 Oct opens it at a prompt instead (the panel's command came in then): if they say so, or `read_terminal` shows one, `send_terminal(text="bin/<name>", keys=["Enter"])`.
 
 Rebuild first, in your own shell, only when you changed the app (`go build -o bin/<name> ./cmd/<name>`), never in theirs.
 

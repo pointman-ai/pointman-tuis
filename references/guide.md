@@ -52,9 +52,9 @@ Read with the machine's own access. Run commands with the kit's `RunOut`, `RunLi
 
 ```text
 go build -o bin/<name> ./cmd/<name>              # only if you changed the app: in your own shell, in the TUI folder
-open_pane(shell={"machine": "mac-m4", "folder": "~/.local/share/message-board/tuis", "command": "bin/<name>"})
+open_pane(shell={"folder": "~/.local/share/message-board/tuis", "command": "bin/<name>"}, machine="mac-m4")
 ```
 
-The panel opens with the app running (its `command`: in the apps since 22 Oct, EXT-43). Answer in the thread straight away, pointing at what's on screen, and say they can take the keyboard. Each step you take is a wait for them, so take as few as you can: waiting for a prompt that never matched theirs cost 31 s once (thread 17421). An older app opens the panel at a prompt instead: then type the app's name with `terminal_send` (no wait for the prompt first). An app that embeds `kit.Kept` draws its last data at once, says how old it is, and refreshes behind it; your own `--snapshot` check warms it for them.
+The panel opens with the app running (its `command`: in the apps since 22 Oct, EXT-43). Answer in the thread straight away, pointing at what's on screen, and say they can take the keyboard. Each step you take is a wait for them, so take as few as you can: waiting for a prompt that never matched theirs cost 31 s once (thread 17421). An older app opens the panel at a prompt instead: then type the app's name with `send_terminal` (no wait for the prompt first). An app that embeds `kit.Kept` draws its last data at once, says how old it is, and refreshes behind it; your own `--snapshot` check warms it for them.
 
-To change what's on screen while they watch (another screen, a row opened), type into the panel with `terminal_send` (`keys=["Tab"]`). If they take the keys back, stop: the tools say when they have.
+To change what's on screen while they watch (another screen, a row opened), type into the panel with `send_terminal` (`keys=["Tab"]`). If they take the keys back, stop: the tools say when they have.
