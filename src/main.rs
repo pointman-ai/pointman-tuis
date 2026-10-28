@@ -215,7 +215,7 @@ fn share(h: &Handle, state: &Mutex<State>) {
         machine: node
             .machine
             .as_option()
-            .map(|m| m.value.as_str())
+            .map(|m| m.name.as_str())
             .filter(|m| !m.is_empty())
             .unwrap_or("a machine")
             .to_string(),
