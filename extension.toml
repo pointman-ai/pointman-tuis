@@ -9,10 +9,10 @@
 [extension]
 id = "tuis"
 name = "TUIs"
-version = "0.5.0"
+version = "0.6.0"
 publisher = "aurelio"
 summary = "Agents build small terminal apps that show work that keeps happening, in a TUI folder on each node, and open them beside the thread for you to look around in."
-node = ">=0.4.0"
+node = ">=0.6,<1"
 platforms = ["macos-arm64", "macos-x86_64", "linux-x86_64", "linux-arm64"]
 
 [run]
@@ -21,7 +21,7 @@ runtime = "binary"
 
 [behavior]
 skill = "SKILL.md"
-clients = ["claude", "codex", "gemini"]
+harnesses = ["claude", "codex", "gemini"]
 files = ["references"]
 
 [permissions]
